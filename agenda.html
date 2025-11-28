@@ -257,185 +257,244 @@ ul{
 <h2>Agendamentos</h2>
 <ul id="lista"></ul>
 </div>
-
 <script>
 const SUPABASE_URL = "https://zlifgtznogdejoibzmpu.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWZndHpub2dkZWpvaWJ6bXB1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM1NDIxOCwiZXhwIjoyMDc0OTMwMjE4fQ.jl6K3Hr0U0KGN7TvvUBy6ssJj8EvqGk1kw0Lq08-eDU"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWZndHpub2dkZWpvaWJ6bXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNTQyMTgsImV4cCI6MjA3NDkzMDIxOH0.Xn4SvzKEy5SPVuObgWJK6BbAzw5twCtUyrcO4sg9pPM";
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ===================== LOGIN =====================
+// LOGIN
 const tipoUsuario = sessionStorage.getItem("tipoUsuario");
 const nomeCliente = sessionStorage.getItem("nomeCliente") || "";
-if(!tipoUsuario){ window.location.href = "login.html"; }
 
-const nomeInput = document.getElementById("nome");
-if(tipoUsuario==="cliente") nomeInput.value = nomeCliente;
+if (!tipoUsuario) window.location.href = "login.html";
 
-// ===================== DADOS DA TRANÇA =====================
-const braidData = JSON.parse(sessionStorage.getItem("braidData") || "{}");
-const trancaInput = document.getElementById("trancaEscolhida");
-if(Object.keys(braidData).length>0){
-  trancaInput.value = `${braidData.name} - ${braidData.comprimento ? 'R$ '+braidData.comprimento : ''}`;
-}
+window.addEventListener("beforeunload", () => {
+    sessionStorage.removeItem("tipoUsuario");
+    sessionStorage.removeItem("nomeCliente");
+    sessionStorage.removeItem("numeroCliente");
+});
 
-// ===================== ELEMENTOS =====================
+// VARIÁVEIS
 const form = document.getElementById("form-agenda");
 const lista = document.getElementById("lista");
 const dataInput = document.getElementById("data");
-const horarioInput = document.getElementById("horario");
+const nomeInput = document.getElementById("nome");
 const quadro = document.getElementById("quadro-horarios");
+const horarioInput = document.getElementById("horario");
 
-const horariosPadrao = ["09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+if (tipoUsuario === "cliente") nomeInput.value = nomeCliente;
+if (tipoUsuario === "admin") form.style.display = "none";
+
+const horariosPadrao = [
+    "09:00","10:00","11:00","12:00",
+    "13:00","14:00","15:00","16:00","17:00"
+];
+
 let horarioSelecionado = null;
 
-// ===================== DURAÇÃO DAS TRANÇAS =====================
-const duracoesHoras = {
-    "Box Braids":4.5, "Gypsy Braids":4.5, "Goddess Braids":4,
-    "Ghana Braids":2, "Faux Locs":4, "Trança Nagô":1,
-    "Fulani Braids":4, "Lemonade Braids":2, "French Curl":4,
-    "Slim Braids":4.5, "Boho Braids":4.5, "Flat Twist":2,
-    "Bantu Knots":2.5, "Twist Feminino":5, "Boxeadora":1.5,
-    "Mohswk Braids":5
-};
-
-// ===================== AJUSTAR HORÁRIOS =====================
-function addHoras(horaStr, horas) {
-  const [h,m] = horaStr.split(":").map(Number);
-  const total = new Date(0,0,0,h,m);
-  total.setHours(total.getHours() + Math.floor(horas));
-  total.setMinutes(total.getMinutes() + Math.round((horas % 1)*60));
-  return total.getHours().toString().padStart(2,"0")+":"+total.getMinutes().toString().padStart(2,"0");
+// FORMATADOR PARA SALVAR HORÁRIO LOCAL (SEM UTC)
+function formatarLocal(ano, mes, dia, hora, minuto) {
+    return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")} ` +
+           `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2,"0")}:00`;
 }
 
-// ===================== ATUALIZAR QUADRO =====================
-async function atualizarQuadro(){
-  if(tipoUsuario==="admin") return;
-  const dataEscolhida = dataInput.value;
-  if(!dataEscolhida){ quadro.innerHTML=""; return; }
+// ATUALIZAR QUADRO
+async function atualizarQuadro() {
+    if (tipoUsuario === "admin") return;
 
-  const { data: agendamentos } = await client.from("agendamentos")
-    .select("*")
-    .gte("horario", dataEscolhida+"T00:00")
-    .lt("horario", dataEscolhida+"T23:59");
-
-  quadro.innerHTML="";
-
-  const ocupados = [];
-  agendamentos.forEach(a=>{
-    const dt = new Date(a.horario);
-    const h = dt.getHours().toString().padStart(2,"0")+":"+dt.getMinutes().toString().padStart(2,"0");
-    const dur = a.tempo_extra || duracoesHoras[a.tranca] || 1;
-    for(let i=0;i<Math.ceil(dur);i++){
-      ocupados.push(addHoras(h,i));
-    }
-  });
-
-  const durSelecionada = braidData.tempoExtra || duracoesHoras[braidData.name] || 1;
-
-  horariosPadrao.forEach(h=>{
-    const div = document.createElement("div");
-    div.textContent = h;
-    div.classList.add("horario");
-
-    let bloqueado=false;
-    for(let i=0;i<Math.ceil(durSelecionada);i++){
-      if(ocupados.includes(addHoras(h,i))){
-        bloqueado=true;
-        break;
-      }
+    const dataEscolhida = dataInput.value;
+    if (!dataEscolhida) {
+        quadro.innerHTML = "";
+        return;
     }
 
-    if(bloqueado) div.classList.add("ocupado");
-    else div.addEventListener("click",()=>{
-      const prev = quadro.querySelector(".selecionado");
-      if(prev) prev.classList.remove("selecionado");
-      div.classList.add("selecionado");
-      horarioSelecionado=h;
+    // Buscar todos da data
+    const { data: agendamentos } = await client
+        .from("agendamentos")
+        .select("*")
+        .gte("horario", dataEscolhida + " 00:00:00")
+        .lt("horario", dataEscolhida + " 23:59:59");
 
-      const [ano,mes,dia]=dataEscolhida.split("-");
-      const [hora,min]=h.split(":");
-      const dtLocal = new Date(ano,mes-1,dia,hora,min,0);
-      horarioInput.value = dtLocal.toISOString().slice(0,19);
+    quadro.innerHTML = "";
+
+    const ocupados = agendamentos.map(a =>
+        a.horario.slice(11, 16) // pega HH:MM
+    );
+
+    horariosPadrao.forEach(h => {
+        const div = document.createElement("div");
+        div.classList.add("horario");
+        div.textContent = h;
+
+        if (ocupados.includes(h)) {
+            div.classList.add("ocupado");
+        } else {
+            div.addEventListener("click", () => {
+
+                quadro.querySelectorAll(".selecionado")
+                      .forEach(el => el.classList.remove("selecionado"));
+
+                div.classList.add("selecionado");
+                horarioSelecionado = h;
+
+                const [ano, mes, dia] = dataEscolhida.split("-");
+                const [hora, min] = h.split(":");
+
+                // SALVAR SEM UTC
+                horarioInput.value = formatarLocal(ano, mes, dia, hora, min);
+            });
+        }
+
+        quadro.appendChild(div);
     });
-
-    quadro.appendChild(div);
-  });
 }
 
-// ===================== EVENTOS =====================
-dataInput.addEventListener("change",()=>{
-  horarioSelecionado=null;
-  horarioInput.value="";
-  atualizarQuadro();
+dataInput.addEventListener("change", () => {
+    horarioSelecionado = null;
+    horarioInput.value = "";
+    atualizarQuadro();
 });
 
-// ===================== ENVIO =====================
-form.addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  if(!horarioSelecionado){ alert("Selecione um horário"); return; }
+// CALCULAR HORÁRIO FINAL (AINDA LOCAL)
+function somarHorasLocal(inicioStr, duracaoBase, tempoExtra) {
+    let dt = new Date(inicioStr.replace(" ", "T"));
 
-  const [ano,mes,dia]=dataInput.value.split("-");
-  const [hora,min]=horarioSelecionado.split(":");
-  const dtLocal = new Date(ano,mes-1,dia,hora,min,0);
+    let somaMs = (duracaoBase + tempoExtra) * 60 * 60 * 1000;
+    let fim = new Date(dt.getTime() + somaMs);
 
-  const { error } = await client.from("agendamentos").insert([{
-    nome_cliente: nomeCliente,
-    horario: dtLocal.toISOString().slice(0,19),
-    tranca: braidData.name || null,
-    comprimento: braidData.comprimento || null,
-    espessura: braidData.espessura || null,
-    cor: braidData.cor || null,
-    extras: braidData.extras ? JSON.stringify(braidData.extras) : null,
-    tempo_extra: braidData.tempoExtra || duracoesHoras[braidData.name] || 1,
-    status:"pendente"
-  }]);
+    return formatarLocal(
+        fim.getFullYear(),
+        fim.getMonth() + 1,
+        fim.getDate(),
+        fim.getHours(),
+        fim.getMinutes()
+    );
+}
 
-  if(error){ alert("Erro: "+error.message); return; }
+// SUBMIT
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  alert("Agendamento criado com sucesso!");
-  const numeroDona = "5511999999999";
-  const diaStr = dtLocal.toLocaleDateString('pt-BR');
-  const horaStr = dtLocal.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false});
-  const mensagem = `Olá! Sou ${nomeCliente} e agendei minha trança ${braidData.name} para ${diaStr} às ${horaStr}.`;
-  window.open(`https://wa.me/${numeroDona}?text=${encodeURIComponent(mensagem)}`,"_blank");
+    if (!horarioSelecionado) {
+        alert("Selecione um horário!");
+        return;
+    }
 
-  form.reset();
-  horarioSelecionado=null;
-  horarioInput.value="";
-  quadro.innerHTML="";
-  carregarAgendamentos();
+    const nome = nomeInput.value;
+    const dataEscolhida = dataInput.value;
+
+    const tranca = document.getElementById("opTranca").value;
+    const comprimento = parseFloat(document.getElementById("opComprimento").value);
+    const cor = document.getElementById("opCor").value;
+    const espessura = parseFloat(document.getElementById("opEspessura").value);
+    const tempoExtra = Number(document.getElementById("opEspessura").selectedOptions[0].dataset.tempo || 0);
+
+    const preco = window.totalPrice || 0;
+    const extras = window.extrasSelecionados || [];
+    const duracaoBase = window.duracaoTrancaBase || 2;
+
+    let horarioInicio = horarioInput.value;
+    let horarioFim = somarHorasLocal(horarioInicio, duracaoBase, tempoExtra);
+
+    const { error } = await client.from("agendamentos").insert([{
+        nome_cliente: nome,
+        tranca,
+        comprimento,
+        cor,
+        espessura,
+        preco,
+        extras,
+        tempo_extra: tempoExtra,
+        dados: { tranca, comprimento, espessura, extras },
+        horario: horarioInicio,
+        horario_fim: horarioFim,
+        status: "pendente"
+    }]);
+
+    if (error) {
+        alert("Erro: " + error.message);
+        return;
+    }
+
+    alert("Agendado com sucesso!");
+
+    form.reset();
+    horarioSelecionado = null;
+    quadro.innerHTML = "";
+    carregarAgendamentos();
 });
 
-// ===================== CARREGAR AGENDAMENTOS =====================
-async function carregarAgendamentos(){
-  const { data } = await client.from("agendamentos").select("*").order("horario",{ascending:true});
-  lista.innerHTML="";
-  if(data){
-    let lastDia="";
-    data.forEach(item=>{
-      if(tipoUsuario==="cliente" && item.nome_cliente.toLowerCase()!==nomeCliente.toLowerCase()) return;
-      const dt = new Date(item.horario);
-      const diaStr = dt.toLocaleDateString('pt-BR');
-      const horaStr = dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',hour12:false});
-      if(diaStr!==lastDia){
-        const diaLi=document.createElement("li");
-        diaLi.textContent=diaStr;
-        diaLi.classList.add("dia");
-        lista.appendChild(diaLi);
-        lastDia=diaStr;
-      }
-      const li = document.createElement("li");
-      li.classList.add("horario-item");
-      li.innerHTML=`<span>${item.nome_cliente}</span> - ${horaStr} - [${item.tranca || 'Sem trança'}]`;
-      lista.appendChild(li);
+// LISTAR
+async function carregarAgendamentos() {
+    const { data } = await client
+        .from("agendamentos")
+        .select("*")
+        .order("horario", { ascending: true });
+
+    lista.innerHTML = "";
+    if (!data) return;
+
+    let ultimoDia = "";
+
+    data.forEach(a => {
+        if (tipoUsuario === "cliente" &&
+            a.nome_cliente.toLowerCase() !== nomeCliente.toLowerCase()) return;
+
+        const dia = a.horario.slice(0, 10);
+        const hora = a.horario.slice(11, 16);
+
+        if (dia !== ultimoDia) {
+            const liDia = document.createElement("li");
+            liDia.textContent = dia.split("-").reverse().join("/");
+            liDia.classList.add("dia");
+            lista.appendChild(liDia);
+            ultimoDia = dia;
+        }
+
+        const li = document.createElement("li");
+        li.classList.add("horario-item");
+
+        li.innerHTML = `
+            <span>${a.nome_cliente} — ${hora} — [${a.status}]</span>
+        `;
+
+        if (tipoUsuario === "admin") {
+            const btnEditar = document.createElement("button");
+            btnEditar.textContent = "✏️";
+            btnEditar.onclick = () => {
+                const novoNome = prompt("Novo nome:", a.nome_cliente);
+                if (novoNome)
+                    client.from("agendamentos")
+                        .update({ nome_cliente: novoNome })
+                        .eq("id", a.id)
+                        .then(() => carregarAgendamentos());
+            };
+
+            const btnExcluir = document.createElement("button");
+            btnExcluir.textContent = "🗑️";
+            btnExcluir.onclick = () => {
+                if (confirm("Excluir agendamento?"))
+                    client.from("agendamentos")
+                        .delete()
+                        .eq("id", a.id)
+                        .then(() => carregarAgendamentos());
+            };
+
+            li.appendChild(btnEditar);
+            li.appendChild(btnExcluir);
+        }
+
+        lista.appendChild(li);
     });
-  }
 }
 
 carregarAgendamentos();
 atualizarQuadro();
+
 </script>
+
+
 
 
 

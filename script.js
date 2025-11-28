@@ -61,21 +61,21 @@ function openOptions(btn) {
   // Durações personalizadas por trança
   const duracoes = {
     "Box Braids": "4h30",
-    "Gypsy Braids": "4h30",
+    "Gypsy Braids": "2h",
     "Goddess Braids": "4h",
-    "Ghana Braids": "3h a 6h",
-    "Faux Locs": "5h a 8h",
-    "Trança Nagô": "2h a 4h",
-    "Fulani Braids": "3h a 6h",
-    "Lemonade Braids": "4h a 6h",
-    "French Curl": "4h a 7h",
-    "Slim Braids": "6h a 10h",
-    "Boho Braids": "4h a 7h",
-    "Flat Twist": "2h a 4h",
-    "Bantu Knots": "1h a 2h",
-    "Twist Feminino": "4h a 6h",
-    "Boxeadora": "2h a 4h",
-    "Mohswk Braids": "4h a 7h"
+    "Ghana Braids": "3h ",
+    "Faux Locs": "5h ",
+    "Trança Nagô": "2h ",
+    "Fulani Braids": "3h ",
+    "Lemonade Braids": "4h",
+    "French Curl": "4h ",
+    "Slim Braids": "6h ",
+    "Boho Braids": "4h ",
+    "Flat Twist": "2h ",
+    "Bantu Knots": "1h ",
+    "Twist Feminino": "4h ",
+    "Boxeadora": "2h",
+    "Mohswk Braids": "4h"
   };
   document.getElementById("duracaoValue").innerText = duracoes[produto] || "—";
 

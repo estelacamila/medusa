@@ -5,6 +5,26 @@ html, body {
   overflow-x: hidden;
 }
 
+/* ==== FIX PARA SAFARI NO IPHONE ==== */
+
+/* Garante que elementos fixos nunca fiquem atrás da barra do Safari */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
+}
+
+/* Se seus botões agendar / finalizar estiverem dentro de algo fixo */
+.btn-fixed {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  z-index: 99999;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+}
+
+
 :root{
   --bg:#08060a;
   --surface:#121018;
@@ -16,6 +36,30 @@ html, body {
   --glass: rgba(255,255,255,0.03);
   --maxw:1100px;
   --gap:18px;
+}
+.btn-agendar {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #070507;
+  width: 100%;
+  transition: .25s ease;
+}
+
+/* Hover igual ao botão WhatsApp */
+.btn-agendar:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+}
+
+/* Active igual ao botão WhatsApp */
+.btn-agendar:active {
+  transform: translateY(0);
+  filter: brightness(1);
 }
 
 *{box-sizing:border-box}
